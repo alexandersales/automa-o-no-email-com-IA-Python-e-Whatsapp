@@ -40,12 +40,12 @@ twilio
 Conteúdo do assistente_email.py:
 Copie o código abaixo. Atenção: Você só precisa alterar os números de telefone na seção 3 do código. As senhas serão configuradas no painel do GitHub por segurança.
 
-import os
-import imaplib
-import email
-from bs4 import BeautifulSoup
-import google.generativeai as genai
-from twilio.rest import Client
+    import os
+    import imaplib
+    import email
+    from bs4 import BeautifulSoup
+    import google.generativeai as genai
+    from twilio.rest import Client
 
 print("Iniciando o Assistente de E-mail... 🚀")
 
@@ -53,78 +53,78 @@ print("Iniciando o Assistente de E-mail... 🚀")
 # 1. CARREGAR SEGREDOS (Variáveis de Ambiente do GitHub)
 # NUNCA escreva as suas senhas diretamente no código!
 
-meu_email = os.environ.get("GMAIL_EMAIL")
-minha_senha = os.environ.get("GMAIL_SENHA")
-chave_ia = os.environ.get("GEMINI_API_KEY")
-twilio_sid = os.environ.get("TWILIO_SID")
-twilio_token = os.environ.get("TWILIO_TOKEN")
+    meu_email = os.environ.get("GMAIL_EMAIL")
+    minha_senha = os.environ.get("GMAIL_SENHA")
+    chave_ia = os.environ.get("GEMINI_API_KEY")
+    twilio_sid = os.environ.get("TWILIO_SID")
+    twilio_token = os.environ.get("TWILIO_TOKEN")
 
 
 # 2. CONECTAR AO GMAIL E LER OS E-MAILS
 
-print("Conectando ao Gmail...")
-try:
-    conexao = imaplib.IMAP4_SSL("imap.gmail.com")
-    conexao.login(meu_email, minha_senha)
-    conexao.select("inbox")
-    
-    # Busca todos os e-mails
-    status, mensagens = conexao.search(None, "ALL")
-    ids_emails = mensagens[0].split()
-    
-    # Pega os 10 e-mails mais recentes
-    ultimos_ids = ids_emails[-10:]
-    pacote_de_emails = ""
-    
-    for num_id in ultimos_ids:
-        status, dados_email = conexao.fetch(num_id, '(RFC822)')
-        mensagem_bruta = dados_email[0][1]
-        mensagem = email.message_from_bytes(mensagem_bruta)
+    print("Conectando ao Gmail...")
+    try:
+        conexao = imaplib.IMAP4_SSL("imap.gmail.com")
+        conexao.login(meu_email, minha_senha)
+        conexao.select("inbox")
         
-        remetente = mensagem.get("From")
-        assunto = mensagem.get("Subject")
-        corpo_texto = ""
+        # Busca todos os e-mails
+        status, mensagens = conexao.search(None, "ALL")
+        ids_emails = mensagens[0].split()
         
-        if mensagem.is_multipart():
-            for parte in mensagem.walk():
-                if parte.get_content_type() == "text/html":
-                    html_bruto = parte.get_payload(decode=True).decode("utf-8", errors="ignore")
-                    sopa = BeautifulSoup(html_bruto, "html.parser")
-                    corpo_texto = sopa.get_text(separator=" ", strip=True)
-                    break
-        else:
-            corpo_texto = mensagem.get_payload(decode=True).decode("utf-8", errors="ignore")
+        # Pega os 10 e-mails mais recentes
+        ultimos_ids = ids_emails[-10:]
+        pacote_de_emails = ""
         
-        # Limita o texto de cada e-mail para não sobrecarregar a IA
-        pacote_de_emails += f"\nDe: {remetente}\nAssunto: {assunto}\nConteúdo: {corpo_texto[:400]}\n---\n"
-        
-except Exception as erro:
-    print(f"Erro ao conectar no Gmail: {erro}")
-    exit()
+        for num_id in ultimos_ids:
+            status, dados_email = conexao.fetch(num_id, '(RFC822)')
+            mensagem_bruta = dados_email[0][1]
+            mensagem = email.message_from_bytes(mensagem_bruta)
+            
+            remetente = mensagem.get("From")
+            assunto = mensagem.get("Subject")
+            corpo_texto = ""
+            
+            if mensagem.is_multipart():
+                for parte in mensagem.walk():
+                    if parte.get_content_type() == "text/html":
+                        html_bruto = parte.get_payload(decode=True).decode("utf-8", errors="ignore")
+                        sopa = BeautifulSoup(html_bruto, "html.parser")
+                        corpo_texto = sopa.get_text(separator=" ", strip=True)
+                        break
+            else:
+                corpo_texto = mensagem.get_payload(decode=True).decode("utf-8", errors="ignore")
+            
+            # Limita o texto de cada e-mail para não sobrecarregar a IA
+            pacote_de_emails += f"\nDe: {remetente}\nAssunto: {assunto}\nConteúdo: {corpo_texto[:400]}\n---\n"
+            
+    except Exception as erro:
+        print(f"Erro ao conectar no Gmail: {erro}")
+        exit()
 
 
 # 3. GERAR O RESUMO COM A IA (GEMINI)
 
-print("Conectando ao Gemini para gerar o resumo... 🧠")
-try:
-    genai.configure(api_key=chave_ia)
-    modelo = genai.GenerativeModel('gemini-2.5-flash')
+    print("Conectando ao Gemini para gerar o resumo... 🧠")
+    try:
+        genai.configure(api_key=chave_ia)
+        modelo = genai.GenerativeModel('gemini-2.5-flash')
+        
+        prompt = f"""
+        Você é meu assistente executivo. Abaixo estão os dados dos últimos e-mails que recebi.
+        Por favor, faça um resumo diário em formato de tópicos para o WhatsApp.
+        Destaque os remetentes importantes, o assunto principal e ignore propagandas inúteis.
+        Seja direto e organizado.
     
-    prompt = f"""
-    Você é meu assistente executivo. Abaixo estão os dados dos últimos e-mails que recebi.
-    Por favor, faça um resumo diário em formato de tópicos para o WhatsApp.
-    Destaque os remetentes importantes, o assunto principal e ignore propagandas inúteis.
-    Seja direto e organizado.
-
-    Aqui estão os e-mails:
-    {pacote_de_emails}
-    """
-    
-    resposta_ia = modelo.generate_content(prompt)
-    resumo_final = resposta_ia.text
-except Exception as erro:
-    print(f"Erro ao processar a IA: {erro}")
-    exit()
+        Aqui estão os e-mails:
+        {pacote_de_emails}
+        """
+        
+        resposta_ia = modelo.generate_content(prompt)
+        resumo_final = resposta_ia.text
+    except Exception as erro:
+        print(f"Erro ao processar a IA: {erro}")
+        exit()
 
 
 # 4. ENVIAR PARA O WHATSAPP (TWILIO)
@@ -132,23 +132,23 @@ except Exception as erro:
 print("Enviando resumo para o WhatsApp... 📱")
 
 # 👉 ATENÇÃO: SUBSTITUA OS NÚMEROS ABAIXO PELOS SEUS 
-remetente_twilio = "whatsapp:+14155238886" # Confirme o número do seu Sandbox Twilio
-meu_numero = "whatsapp:+55SEUNUMEROAQUI" # Coloque o seu código de país + DDD + Número
+        remetente_twilio = "whatsapp:+14155238886" # Confirme o número do seu Sandbox Twilio
+        meu_numero = "whatsapp:+55SEUNUMEROAQUI" # Coloque o seu código de país + DDD + Número
+        
+        try:
+            cliente_twilio = Client(twilio_sid, twilio_token)
+            mensagem_whatsapp = f"🤖 *Seu Boletim Diário de E-mails*\n\n{resumo_final}"
+        
+        mensagem = cliente_twilio.messages.create(
+            from_=remetente_twilio,
+            body=mensagem_whatsapp,
+            to=meu_numero
+        )
+        print("✅ Sucesso! Mensagem enviada para o seu WhatsApp.")
+    except Exception as erro:
+        print(f"Erro ao enviar o WhatsApp: {erro}")
 
-try:
-    cliente_twilio = Client(twilio_sid, twilio_token)
-    mensagem_whatsapp = f"🤖 *Seu Boletim Diário de E-mails*\n\n{resumo_final}"
-    
-    mensagem = cliente_twilio.messages.create(
-        from_=remetente_twilio,
-        body=mensagem_whatsapp,
-        to=meu_numero
-    )
-    print("✅ Sucesso! Mensagem enviada para o seu WhatsApp.")
-except Exception as erro:
-    print(f"Erro ao enviar o WhatsApp: {erro}")
-
-    Passo 2: Configurar os Segredos (Secrets) no GitHub
+Passo 2: Configurar os Segredos (Secrets) no GitHub
 
 Para o código funcionar com segurança, você precisa guardar as suas chaves no "Cofre" do GitHub.
 
@@ -156,15 +156,15 @@ No seu repositório, vá na aba Settings > Security > Secrets and variables > Ac
 
 Clique em New repository secret e adicione os 5 segredos exatamente com estes nomes (sem aspas e sem espaços vazios):
 
-GMAIL_EMAIL: (Ex: seuemail@gmail.com)
+    GMAIL_EMAIL: (Ex: seuemail@gmail.com)
 
-GMAIL_SENHA: (A senha de aplicativo de 16 dígitos)
+    GMAIL_SENHA: (A senha de aplicativo de 16 dígitos)
 
-GEMINI_API_KEY: (Sua chave do Google AI Studio)
-
-TWILIO_SID: (O seu Account SID da Twilio que começa com AC)
-
-TWILIO_TOKEN: (O seu Auth Token da Twilio)
+    GEMINI_API_KEY: (Sua chave do Google AI Studio)
+    
+    TWILIO_SID: (O seu Account SID da Twilio que começa com AC)
+    
+    TWILIO_TOKEN: (O seu Auth Token da Twilio)
 
 Passo 3: Criar a Automação (GitHub Actions)
 
@@ -173,7 +173,7 @@ No seu repositório, vá na aba Actions.
 Clique em "set up a workflow yourself".
 
 Cole o código YAML abaixo e salve (Commit). Este código diz para a nuvem rodar o script todos os dias às 07:00 da manhã (horário do Brasil).
-
+```
 name: Assistente de Email Diario
 
 on:
@@ -206,6 +206,7 @@ jobs:
         TWILIO_SID: ${{ secrets.TWILIO_SID }}
         TWILIO_TOKEN: ${{ secrets.TWILIO_TOKEN }}
       run: python assistente_email.py
+```
 
 🎉 Pronto! O seu assistente pessoal está configurado e rodando na nuvem!
 
